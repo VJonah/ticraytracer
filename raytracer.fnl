@@ -8,8 +8,6 @@
 ;; a collection of palettes for each line
 (local palettes [])
 
-
-
 (fn change-palette [...]
   "takes a sequential table of 16 [r g b] and sets it"
   (local palette 0x3fc0)
@@ -17,6 +15,18 @@
       (poke (+ palette (* (- i 1) 3)) r)
       (poke (+ palette (* (- i 1) 3) 1) g)
       (poke (+ palette (* (- i 1) 3) 2) b)))
+
+(fn render []
+  "renders pixel by pixel to frame"
+  (for [i 0 (- height 1)]
+    (local scanline [])
+    (for [j 0 (- width 1)]
+      (let [r (math.floor (* 255.999 ) (/ i (- width 1)))
+            g (math.floor (* 255.999 ) (/ j (- height 1)))
+            b 0]
+        (table.insert scanline [r g b]))
+      )
+    (table.insert palettes (get-palette scanline))))
 
 (cls) ;; clear once
 (fn _G.TIC []

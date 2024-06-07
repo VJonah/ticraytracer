@@ -3,7 +3,7 @@
 ** TODOs
 
 - [X] a function to reassign the entire palette
-- [ ] a function that renders a frame
+- [X] a function that renders +a frame+ each pixel
 - [ ] a function to colour quantise a scanline worth of pixels
   - [ ] implement median cut clustering
 - [ ] draw a frame of scanlines, each with their own palettes, to screen using ~BDR~
