@@ -2,7 +2,7 @@
 
 ** TODOs
 
-- [ ] a function to reassign the entire palette
+- [X] a function to reassign the entire palette
 - [ ] a function that renders a frame
 - [ ] a function to colour quantise a scanline worth of pixels
   - [ ] implement median cut clustering
