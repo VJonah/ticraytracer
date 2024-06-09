@@ -65,18 +65,34 @@
         (median-cut upper_half (/ n 2) buckets))))
 
 (fn render []
-  "renders pixel by pixel to frame"
-  (for [i 0 (- height 1)]
+  "Calculates colour value of each pixel and sets them to frame, scan
+   line by scanline."
+  (var left height)
+  (for [j 0 (- height 1)]
     (local scanline [])
-    (for [j 0 (- width 1)]
-      (let [r (math.floor (* 255.999 ) (/ i (- width 1)))
-            g (math.floor (* 255.999 ) (/ j (- height 1)))
-            b 0]
-        (table.insert scanline [r g b]))
-      )
-    (table.insert palettes (get-palette scanline))))
+    (for [i 0 (- width 1)]
+      (let [r (math.floor (* 255.999 (/ i (- width 1))))
+            g (math.floor (* 255.999 (/ j (- height 1))))
+            b 0
+            pixel [r g b i]]
+        (table.insert scanline pixel)))
+    (let [buckets []
+          palette []]
+      (median-cut scanline 16 buckets)
+      (each [pal_idx bucket (ipairs buckets)]
+        (table.insert palette (mean-pixel bucket))
+        (each [_ pxl (ipairs bucket)]
+          (pix (. pxl 4) j pal_idx)))
+      (table.insert palettes palette))
+    (set left (- left 1))
+    (trace (.. "Scanlines left: " left))))
 
-(cls) ;; clear once
+;; clear once
+(cls)
+
+;; call 'render'
+(render)
+
 (fn _G.TIC []
   "game loop that's called 60/s")
 
