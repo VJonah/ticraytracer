@@ -29,6 +29,41 @@
   (if increment (* (round (/ x increment)) increment))
   (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
 
+(fn mean-pixel [pixels]
+  "Returns the mean pixel."
+  (let [mean_r (round (mean (icollect [_ rgb (ipairs pixels)] (. rgb 1))) 1)
+        mean_g (round (mean (icollect [_ rgb (ipairs pixels)] (. rgb 2))) 1)
+        mean_b (round (mean (icollect [_ rgb (ipairs pixels)] (. rgb 3))) 1)]
+    [mean_r mean_g mean_b]))
+
+(fn get-greatest-range [pixels]
+  "Returns the index of the colour channel with the greatest range
+   in a collection of pixels."
+  (var max_range -1)
+  (var greatest_ch -1)
+  (for [ch_idx 1 3]
+    (let [rng (range (icollect [_ rgb (ipairs pixels)] (. rgb ch_idx)))]
+      (if (> rng max_range)
+          (do
+            (set max_range rng)
+            (set greatest_ch ch_idx)))))
+  greatest_ch)
+
+(fn median-cut [pixels n buckets]
+  "Performs the median cut colour quantisation algorithm."
+  (if (= n 1)
+      (table.insert buckets pixels)
+      (let [ch_idx (get-greatest-range pixels)
+            lower_half []
+            upper_half []
+            len (length pixels)
+            half (// len 2)]
+        (table.sort pixels #(< (. $1 ch_idx) (. $2 ch_idx)))
+        (table.move pixels 1 half 1 lower_half)
+        (table.move pixels (+ half 1) len 1 upper_half)
+        (median-cut lower_half (/ n 2) buckets)
+        (median-cut upper_half (/ n 2) buckets))))
+
 (fn render []
   "renders pixel by pixel to frame"
   (for [i 0 (- height 1)]
