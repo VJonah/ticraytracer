@@ -101,7 +101,10 @@
   (let [line_no (- scanline 3)
         palette (. palettes line_no)]
     (if palette
-        (change-palette (unpack palette)))))
+        (change-palette palette)
+        (if (< line_no 1)
+            (change-palette (. palettes 1))
+            (change-palette (. palettes 136))))))
 
 ;; <PALETTE>
 ;; 000:101010202020303030404040505050606060707070808080909090a0a0a0b0b0b0c0c0c0d0d0d0e0e0e0f0f0f0ffffff
