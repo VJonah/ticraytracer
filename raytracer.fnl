@@ -8,13 +8,13 @@
 ;; a collection of palettes for each line
 (local palettes [])
 
-(fn change-palette [...]
-  "takes a sequential table of 16 [r g b] and sets it"
-  (local palette 0x3fc0)
-  (each [i [r g b] (ipairs ...)]
+(fn change-palette [colours]
+  "Takes a sequential table of 16 [r g b] and sets it to memory."
+  (let [palette 16320]
+    (each [i [r g b] (ipairs colours)]
       (poke (+ palette (* (- i 1) 3)) r)
       (poke (+ palette (* (- i 1) 3) 1) g)
-      (poke (+ palette (* (- i 1) 3) 2) b)))
+      (poke (+ palette (* (- i 1) 3) 2) b))))
 
 (fn render []
   "renders pixel by pixel to frame"
