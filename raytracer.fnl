@@ -16,6 +16,19 @@
       (poke (+ palette (* (- i 1) 3) 1) g)
       (poke (+ palette (* (- i 1) 3) 2) b))))
 
+(fn range [tbl]
+  "Returns the range of a collection of values."
+  (- (math.max (table.unpack tbl)) (math.min (table.unpack tbl))))
+
+(fn mean [tbl]
+  "Calculates the mean value of a table."
+  (/ (accumulate [sum 0 _ n (ipairs tbl)] (+ sum n)) (length tbl)))
+
+(fn round [x ?increment]
+  "Rounds floats (from lume.lua)."
+  (if increment (* (round (/ x increment)) increment))
+  (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
+
 (fn render []
   "renders pixel by pixel to frame"
   (for [i 0 (- height 1)]
