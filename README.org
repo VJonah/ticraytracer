@@ -1,9 +1,8 @@
 * Implementing a ray tracer inside the TIC-80.
 
 ** TODOs
-
 - [X] a function to reassign the entire palette
 - [X] a function that renders +a frame+ each pixel
-- [ ] a function to colour quantise a scanline worth of pixels
-  - [ ] implement median cut clustering
-- [ ] draw a frame of scanlines, each with their own palettes, to screen using ~BDR~
+- [X] a function to colour quantise a scanline worth of pixels
+  - [X] implement median cut clustering
+- [X] draw a frame of scanlines, each with their own palettes, to screen using ~BDR~
