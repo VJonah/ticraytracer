@@ -126,6 +126,8 @@
 (fn ray-colour [r] [0 0 0])
 ;; --------------------------------------------------------------------
 
+;; --------------------------------------------------------------------
+;; helpers
 (fn range [tbl]
   "Returns the range of a collection of values."
   (- (math.max (table.unpack tbl)) (math.min (table.unpack tbl))))
@@ -138,6 +140,17 @@
   "Rounds floats (from lume.lua)."
   (if increment (* (round (/ x increment)) increment))
   (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
+;; colour quantisation
+(fn change-palette [colours]
+  "Takes a sequential table of 16 [r g b] and sets it to memory."
+  (let [palette 16320]
+    (each [i [r g b] (ipairs colours)]
+      (poke (+ palette (* (- i 1) 3)) r)
+      (poke (+ palette (* (- i 1) 3) 1) g)
+      (poke (+ palette (* (- i 1) 3) 2) b))))
 
 (fn mean-pixel [pixels]
   "Returns the mean pixel."
@@ -173,6 +186,7 @@
         (table.move pixels (+ half 1) len 1 upper_half)
         (median-cut lower_half (/ n 2) buckets)
         (median-cut upper_half (/ n 2) buckets))))
+;; --------------------------------------------------------------------
 
 (fn render []
   "Calculates colour value of each pixel and sets them to frame, scan
