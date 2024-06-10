@@ -195,11 +195,8 @@
   (for [j 0 (- height 1)]
     (local scanline [])
     (for [i 0 (- width 1)]
-      (let [r (math.floor (* 255.999 (/ i (- width 1))))
-            g (math.floor (* 255.999 (/ j (- height 1))))
-            b 0
-            pixel [r g b i]]
-        (table.insert scanline pixel)))
+      (let [pixel_colour (make-colour (/ i (- width 1)) (/ j (- height 1)) 0)]
+        (table.insert scanline (write-colour pixel_colour i))))
     (let [buckets []
           palette []]
       (median-cut scanline 16 buckets)
