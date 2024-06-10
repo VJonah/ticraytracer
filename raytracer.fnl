@@ -43,23 +43,23 @@
 
 (fn vec+ [...]
   "Add an arbitrary number of vectors element wise."
-  (let [new_x (accumulate [sum 0 _ v (ipairs ...)] (+ sum v.x))
-        new_y (accumulate [sum 0 _ v (ipairs ...)] (+ sum v.y))
-        new_z (accumulate [sum 0 _ v (ipairs ...)] (+ sum v.z))]
+  (let [new_x (accumulate [sum 0 _ v (ipairs [...])] (+ sum v.x))
+        new_y (accumulate [sum 0 _ v (ipairs [...])] (+ sum v.y))
+        new_z (accumulate [sum 0 _ v (ipairs [...])] (+ sum v.z))]
     (make-vector new_x new_y new_z)))
 
 (fn vec- [v1 ...]
   "Subtract an arbitrary number of vectors element wise."
-  (let [new_x (accumulate [sum v1.x _ v2 (ipairs ...)] (- sum v2.x))
-        new_y (accumulate [sum v1.y _ v2 (ipairs ...)] (- sum v2.y))
-        new_z (accumulate [sum v1.z _ v2 (ipairs ...)] (- sum v2.z))]
+  (let [new_x (accumulate [sum v1.x _ v2 (ipairs [...])] (- sum v2.x))
+        new_y (accumulate [sum v1.y _ v2 (ipairs [...])] (- sum v2.y))
+        new_z (accumulate [sum v1.z _ v2 (ipairs [...])] (- sum v2.z))]
     (make-vector new_x new_y new_z)))
 
 (fn vec* [...]
   "Multiply an arbitrary number of vectors element wise."
-  (let [new_x (accumulate [prod 1 _ v (ipairs ...)] (* prod v.x))
-        new_y (accumulate [prod 1 _ v (ipairs ...)] (* prod v.y))
-        new_z (accumulate [prod 1 _ v (ipairs ...)] (* prod v.z))]
+  (let [new_x (accumulate [prod 1 _ v (ipairs [...])] (* prod v.x))
+        new_y (accumulate [prod 1 _ v (ipairs [...])] (* prod v.y))
+        new_z (accumulate [prod 1 _ v (ipairs [...])] (* prod v.z))]
     (make-vector new_x new_y new_z)))
 
 (fn vec-mul [v t] (make-vector (* v.x t) (* v.y t) (* v.z t)))
