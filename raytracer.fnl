@@ -118,19 +118,13 @@
 
 ;; --------------------------------------------------------------------
 ;; rays
-(fn make-ray (orig dir)
+(fn make-ray [orig dir]
   {: orig
    : dir
    :at (fn [self t] (+ self.orig (* self.dir t)))})
-;; --------------------------------------------------------------------
 
-(fn change-palette [colours]
-  "Takes a sequential table of 16 [r g b] and sets it to memory."
-  (let [palette 16320]
-    (each [i [r g b] (ipairs colours)]
-      (poke (+ palette (* (- i 1) 3)) r)
-      (poke (+ palette (* (- i 1) 3) 1) g)
-      (poke (+ palette (* (- i 1) 3) 2) b))))
+(fn ray-colour [r] [0 0 0])
+;; --------------------------------------------------------------------
 
 (fn range [tbl]
   "Returns the range of a collection of values."
