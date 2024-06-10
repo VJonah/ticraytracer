@@ -81,6 +81,14 @@
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
+;; camera
+(local focal_length 1.0)
+(local viewport_height 2.0)
+(local viewport_width (* viewport_height (/ width height)))
+(local camera_center (make-point 0 0 0))
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; viewport
 (local viewport_u (make-vector viewport_width 0 0))
 (local viewport_v (make-vector 0 (- viewport_height) 0))
