@@ -8,6 +8,60 @@
 ;; a collection of palettes for each line
 (local palettes [])
 
+;; --------------------------------------------------------------------
+;; vectors
+(fn make-vector [x y z]
+  {:x (or x 0)
+   :y (or y 0)
+   :z (or z 0)
+   :+= (fn [self v2]
+         (tset self :x (+ self.x v2.x))
+         (tset self :y (+ self.y v2.y))
+         (tset self :z (+ self.z v2.z)))
+   :*= (fn [self t]
+         (tset self :x (* self.x t))
+         (tset self :y (* self.y t))
+         (tset self :z (* self.z t)))
+   :/= (fn [self t] (self:*= (/ 1 t)))})
+
+(fn vec-at [v i]
+  (case i
+    0 v.x
+    1 v.y
+    2 v.z
+    _ (trace "ERROR -- vector index out of range (vec-at)")))
+
+(fn vec-neg [v] (make-vector (- v.x) (- v.y) (- v.z)))
+
+(fn vec-len-sq [v] (+ (* v.x v.x) (* v.y v.y) (* v.z v.z)))
+
+(fn vec-len [v] (math.sqrt (vec-len-sq v)))
+
+(fn vec+ [v1 v2]
+  (make-vector (+ v1.x v2.x) (+ v1.y v2.y) (+ v1.z v2.z)))
+
+(fn vec- [v1 v2]
+  (make-vector (- v1.x v2.x) (- v1.y v2.y) (- v1.z v2.z)))
+
+(fn vec* [v1 v2]
+  (make-vector (* v1.x v2.x) (* v1.y v2.y) (* v1.z v2.z)))
+
+(fn vec-mul [v t] (make-vector (* v.x t) (* v.y t) (* v.z t)))
+
+(fn vec-div [v t] (vec-mul v (/ 1 t)))
+
+(fn vec-dot [v1 v2]
+  (+ (* v1.x v2.x) (* v1.y v2.y) (* v1.z v2.z)))
+
+(fn vec-cross [v1 v2]
+  (make-vector (- (* v1.y v2.z) (* v1.z v2.y)) (- (* v1.z v2.x) (* v1.x v2.z))
+               (- (* v1.x v2.y) (* v1.y v2.x))))
+
+(fn unit-vector [v] (vec-div v (vec-len v)))
+
+(fn vec-to-str [v] (.. "(" v.x ", " v.y ", " v.z ")"))
+;; --------------------------------------------------------------------
+
 (fn change-palette [colours]
   "Takes a sequential table of 16 [r g b] and sets it to memory."
   (let [palette 16320]
