@@ -62,6 +62,14 @@
 (fn vec-to-str [v] (.. "(" v.x ", " v.y ", " v.z ")"))
 ;; --------------------------------------------------------------------
 
+;; --------------------------------------------------------------------
+;; rays
+(fn make-ray (orig dir)
+  {: orig
+   : dir
+   :at (fn [self t] (+ self.orig (* self.dir t)))})
+;; --------------------------------------------------------------------
+
 (fn change-palette [colours]
   "Takes a sequential table of 16 [r g b] and sets it to memory."
   (let [palette 16320]
