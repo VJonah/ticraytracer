@@ -13,6 +13,7 @@
 ;; --------------------------------------------------------------------
 ;; vectors
 (fn make-vector [x y z]
+  "Creates a vector object."
   {:x (or x 0)
    :y (or y 0)
    :z (or z 0)
@@ -26,7 +27,10 @@
          (tset self :z (* self.z t)))
    :/= (fn [self t] (self:*= (/ 1 t)))})
 
+(fn make-point [x y z] (make-vector x y z))
+
 (fn vec-at [v i]
+  "Makes vector coordinates 0-indexable."
   (case i
     0 v.x
     1 v.y
@@ -39,29 +43,43 @@
 
 (fn vec-len [v] (math.sqrt (vec-len-sq v)))
 
-(fn vec+ [v1 v2]
-  (make-vector (+ v1.x v2.x) (+ v1.y v2.y) (+ v1.z v2.z)))
+(fn vec+ [...]
+  "Add an arbitrary number of vectors element wise."
+  (let [new_x (accumulate [sum 0 _ v (ipairs ...)] (+ sum v.x))
+        new_y (accumulate [sum 0 _ v (ipairs ...)] (+ sum v.y))
+        new_z (accumulate [sum 0 _ v (ipairs ...)] (+ sum v.z))]
+    (make-vector new_x new_y new_z)))
 
-(fn vec- [v1 v2]
-  (make-vector (- v1.x v2.x) (- v1.y v2.y) (- v1.z v2.z)))
+(fn vec- [v1 ...]
+  "Subtract an arbitrary number of vectors element wise."
+  (let [new_x (accumulate [sum v1.x _ v2 (ipairs ...)] (- sum v2.x))
+        new_y (accumulate [sum v1.y _ v2 (ipairs ...)] (- sum v2.y))
+        new_z (accumulate [sum v1.z _ v2 (ipairs ...)] (- sum v2.z))]
+    (make-vector new_x new_y new_z)))
 
-(fn vec* [v1 v2]
-  (make-vector (* v1.x v2.x) (* v1.y v2.y) (* v1.z v2.z)))
+(fn vec* [...]
+  "Multiply an arbitrary number of vectors element wise."
+  (let [new_x (accumulate [prod 1 _ v (ipairs ...)] (* prod v.x))
+        new_y (accumulate [prod 1 _ v (ipairs ...)] (* prod v.y))
+        new_z (accumulate [prod 1 _ v (ipairs ...)] (* prod v.z))]
+    (make-vector new_x new_y new_z)))
 
 (fn vec-mul [v t] (make-vector (* v.x t) (* v.y t) (* v.z t)))
 
 (fn vec-div [v t] (vec-mul v (/ 1 t)))
 
 (fn vec-dot [v1 v2]
+  "Vector dot product."
   (+ (* v1.x v2.x) (* v1.y v2.y) (* v1.z v2.z)))
 
 (fn vec-cross [v1 v2]
+  "Vector cross product."
   (make-vector (- (* v1.y v2.z) (* v1.z v2.y)) (- (* v1.z v2.x) (* v1.x v2.z))
                (- (* v1.x v2.y) (* v1.y v2.x))))
 
 (fn unit-vector [v] (vec-div v (vec-len v)))
 
-(fn vec-to-str [v] (.. "(" v.x ", " v.y ", " v.z ")"))
+(fn vec2str [v] (.. "(" v.x ", " v.y ", " v.z ")"))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
