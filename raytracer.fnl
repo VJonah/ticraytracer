@@ -5,6 +5,8 @@
 ;; screen width and height
 (local height 136)
 (local width 240)
+(local viewport_height 2.0)
+(local viewport_width (* viewport_height (/ width height)))
 ;; a collection of palettes for each line
 (local palettes [])
 
