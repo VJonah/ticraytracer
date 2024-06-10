@@ -123,7 +123,11 @@
    : dir
    :at (fn [self t] (+ self.orig (* self.dir t)))})
 
-(fn ray-colour [r] [0 0 0])
+(fn ray-colour [r]
+  (let [unit_direction (unit-vector r.dir)
+        a (* 0.5 (+ unit_direction.y 1))]
+    (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
+          (vec-mul (make-colour 0.5 0.7 1.0) a))))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -195,7 +199,12 @@
   (for [j 0 (- height 1)]
     (local scanline [])
     (for [i 0 (- width 1)]
-      (let [pixel_colour (make-colour (/ i (- width 1)) (/ j (- height 1)) 0)]
+      (let [pixel_center (vec+ pixel00_loc
+                               (vec-mul pixel_delta_u i)
+                               (vec-mul pixel_delta_v j))
+            ray_direction (vec- pixel_center camera_center)
+            r (make-ray camera_center ray_direction)
+            pixel_colour (ray-colour r)]
         (table.insert scanline (write-colour pixel_colour i))))
     (let [buckets []
           palette []]
@@ -212,7 +221,7 @@
 (cls)
 
 ;; call 'render'
-;;(render)
+(render)
 
 (fn _G.TIC []
   "game loop that's called 60/s")
