@@ -5,8 +5,6 @@
 ;; screen width and height
 (local height 136)
 (local width 240)
-(local viewport_height 2.0)
-(local viewport_width (* viewport_height (/ width height)))
 ;; a collection of palettes for each line
 (local palettes [])
 
@@ -80,6 +78,23 @@
 (fn unit-vector [v] (vec-div v (vec-len v)))
 
 (fn vec2str [v] (.. "(" v.x ", " v.y ", " v.z ")"))
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
+;; viewport
+(local viewport_u (make-vector viewport_width 0 0))
+(local viewport_v (make-vector 0 (- viewport_height) 0))
+
+(local pixel_delta_u (vec-div viewport_u width))
+(local pixel_delta_v (vec-div viewport_v height))
+
+(local viewport_upper_left (vec- camera_center
+                                 (make-vector 0 0 focal_length)
+                                 (vec-div viewport_u 2)
+                                 (vec-div viewport_v 2)))
+
+(local pixel00_loc (vec+ viewport_upper_left
+                         (vec-mul (vec+ pixel_delta_u pixel_delta_v) 0.5)))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
