@@ -9,6 +9,39 @@
 (local palettes [])
 
 ;; --------------------------------------------------------------------
+;; helpers
+(fn range [tbl]
+  "Returns the range of a collection of values."
+  (- (math.max (table.unpack tbl)) (math.min (table.unpack tbl))))
+
+(fn mean [tbl]
+  "Calculates the mean value of a table."
+  (/ (accumulate [sum 0 _ x (ipairs tbl)] (+ sum x)) (length tbl)))
+
+(fn median [tbl]
+  "Calculates the median value of a table."
+  (let [len (length tbl)
+        half (math.ceil len 2)]
+    (if (= (% len 2) 0)
+        (/ (+ (. tbl half) (. tbl (- half 1))) 2)
+        (. tbl half))))
+
+(fn square [x] (* x x))
+
+(fn variance [tbl]
+  "Calculates the vairnace of table of values."
+  (let [mu (mean tbl)]
+    (/ (accumulate [sum 0 _ x (ipairs tbl)]
+         (+ sum (square (- x mu)))) (length tbl))))
+
+(fn round [x ?increment]
+  "Rounds floats (from lume.lua)."
+  (if increment (* (round (/ x increment)) increment))
+  (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
+
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; vectors
 (fn make-vector [x y z]
   "Creates a vector object."
@@ -43,23 +76,32 @@
 
 (fn vec+ [...]
   "Add an arbitrary number of vectors element wise."
-  (let [new_x (accumulate [sum 0 _ v (ipairs [...])] (+ sum v.x))
-        new_y (accumulate [sum 0 _ v (ipairs [...])] (+ sum v.y))
-        new_z (accumulate [sum 0 _ v (ipairs [...])] (+ sum v.z))]
+  (let [new_x (accumulate [sum 0 _ v (ipairs [...])]
+                (+ sum v.x))
+        new_y (accumulate [sum 0 _ v (ipairs [...])]
+                (+ sum v.y))
+        new_z (accumulate [sum 0 _ v (ipairs [...])]
+                (+ sum v.z))]
     (make-vector new_x new_y new_z)))
 
 (fn vec- [v1 ...]
   "Subtract an arbitrary number of vectors element wise."
-  (let [new_x (accumulate [sum v1.x _ v2 (ipairs [...])] (- sum v2.x))
-        new_y (accumulate [sum v1.y _ v2 (ipairs [...])] (- sum v2.y))
-        new_z (accumulate [sum v1.z _ v2 (ipairs [...])] (- sum v2.z))]
+  (let [new_x (accumulate [sum v1.x _ v2 (ipairs [...])]
+                (- sum v2.x))
+        new_y (accumulate [sum v1.y _ v2 (ipairs [...])]
+                (- sum v2.y))
+        new_z (accumulate [sum v1.z _ v2 (ipairs [...])]
+                (- sum v2.z))]
     (make-vector new_x new_y new_z)))
 
 (fn vec* [...]
   "Multiply an arbitrary number of vectors element wise."
-  (let [new_x (accumulate [prod 1 _ v (ipairs [...])] (* prod v.x))
-        new_y (accumulate [prod 1 _ v (ipairs [...])] (* prod v.y))
-        new_z (accumulate [prod 1 _ v (ipairs [...])] (* prod v.z))]
+  (let [new_x (accumulate [prod 1 _ v (ipairs [...])]
+                (* prod v.x))
+        new_y (accumulate [prod 1 _ v (ipairs [...])]
+                (* prod v.y))
+        new_z (accumulate [prod 1 _ v (ipairs [...])]
+                (* prod v.z))]
     (make-vector new_x new_y new_z)))
 
 (fn vec-mul [v t] (make-vector (* v.x t) (* v.y t) (* v.z t)))
@@ -107,21 +149,24 @@
 (local pixel_delta_u (vec-div viewport_u width))
 (local pixel_delta_v (vec-div viewport_v height))
 
-(local viewport_upper_left (vec- camera_center
-                                 (make-vector 0 0 focal_length)
-                                 (vec-div viewport_u 2)
-                                 (vec-div viewport_v 2)))
+(local viewport_upper_left
+       (vec- camera_center (make-vector 0 0 focal_length)
+             (vec-div viewport_u 2) (vec-div viewport_v 2)))
 
-(local pixel00_loc (vec+ viewport_upper_left
-                         (vec-mul (vec+ pixel_delta_u pixel_delta_v) 0.5)))
+(local pixel00_loc
+       (vec+ viewport_upper_left (vec-mul (vec+ pixel_delta_u pixel_delta_v)
+                                          0.5)))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
-;; rays
-(fn make-ray [orig dir]
-  {: orig
-   : dir
-   :at (fn [self t] (+ self.orig (* self.dir t)))})
+;; objects
+(fn hit-sphere [center radius ray]
+  (let [oc (vec- center ray.orig)
+        a (vec-dot ray.dir ray.dir)
+        b (* -2.0 (vec-dot ray.dir oc))
+        c (- (vec-dot oc oc) (* radius radius))
+        discriminant (- (* b b) (* 4 a c))]
+    (>= discriminant 0)))
 
 (fn ray-colour [r]
   (let [unit_direction (unit-vector r.dir)
@@ -131,14 +176,17 @@
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
-;; helpers
-(fn range [tbl]
-  "Returns the range of a collection of values."
-  (- (math.max (table.unpack tbl)) (math.min (table.unpack tbl))))
+;; rays
+(fn make-ray [orig dir]
+  {: orig : dir :at (fn [self t] (+ self.orig (* self.dir t)))})
 
-(fn mean [tbl]
-  "Calculates the mean value of a table."
-  (/ (accumulate [sum 0 _ n (ipairs tbl)] (+ sum n)) (length tbl)))
+(fn ray-colour [r]
+  (if (hit-sphere (make-point 0 0 -1) 0.5 r)
+      (make-colour 1 0 0)
+      (let [unit_direction (unit-vector r.dir)
+            a (* 0.5 (+ unit_direction.y 1))]
+        (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
+              (vec-mul (make-colour 0.5 0.7 1.0) a)))))
 
 (fn round [x ?increment]
   "Rounds floats (from lume.lua)."
@@ -199,8 +247,7 @@
   (for [j 0 (- height 1)]
     (local scanline [])
     (for [i 0 (- width 1)]
-      (let [pixel_center (vec+ pixel00_loc
-                               (vec-mul pixel_delta_u i)
+      (let [pixel_center (vec+ pixel00_loc (vec-mul pixel_delta_u i)
                                (vec-mul pixel_delta_v j))
             ray_direction (vec- pixel_center camera_center)
             r (make-ray camera_center ray_direction)
