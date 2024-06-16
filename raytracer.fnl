@@ -164,21 +164,26 @@
         b (* -2.0 (vec-dot ray.dir oc))
         c (- (vec-dot oc oc) (* radius radius))
         discriminant (- (* b b) (* 4 a c))]
-    (>= discriminant 0)))
+    (if (< discriminant 0)
+        -1
+        (/ (- (- b) (math.sqrt discriminant)) (* 2 a)))))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; rays
 (fn make-ray [orig dir]
-  {: orig : dir :at (fn [self t] (+ self.orig (* self.dir t)))})
+  {: orig : dir :at (fn [self t] (vec+ self.orig (vec-mul self.dir t)))})
 
 (fn ray-colour [r]
-  (if (hit-sphere (make-point 0 0 -1) 0.5 r)
-      (make-colour 1 0 0)
-      (let [unit_direction (unit-vector r.dir)
-            a (* 0.5 (+ unit_direction.y 1))]
-        (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
-              (vec-mul (make-colour 0.5 0.7 1.0) a)))))
+  (let [t (hit-sphere (make-point 0 0 -1) 0.5 r)]
+    (if (> t 0)
+        (let [N (unit-vector (vec- (r:at t) (make-vector 0 0 -1)))]
+          (vec-mul (make-colour (+ N.x 1) (+ N.y 1) (+ N.z 1))
+                   0.5))
+        (let [unit_direction (unit-vector r.dir)
+              a (* 0.5 (+ unit_direction.y 1))]
+          (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
+                (vec-mul (make-colour 0.5 0.7 1) a))))))
 
 (fn round [x ?increment]
   "Rounds floats (from lume.lua)."
