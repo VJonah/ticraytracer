@@ -38,7 +38,6 @@
   "Rounds floats (from lume.lua)."
   (if increment (* (round (/ x increment)) increment))
   (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
-
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -122,7 +121,6 @@
 (fn vec2str [v] (.. "(" v.x ", " v.y ", " v.z ")"))
 ;; --------------------------------------------------------------------
 
-
 ;; --------------------------------------------------------------------
 ;; colours
 (fn make-colour [x y z] (make-vector x y z))
@@ -167,12 +165,6 @@
         c (- (vec-dot oc oc) (* radius radius))
         discriminant (- (* b b) (* 4 a c))]
     (>= discriminant 0)))
-
-(fn ray-colour [r]
-  (let [unit_direction (unit-vector r.dir)
-        a (* 0.5 (+ unit_direction.y 1))]
-    (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
-          (vec-mul (make-colour 0.5 0.7 1.0) a))))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -206,38 +198,94 @@
 
 (fn mean-pixel [pixels]
   "Returns the mean pixel."
-  (let [mean_r (round (mean (icollect [_ rgb (ipairs pixels)] (. rgb 1))) 1)
-        mean_g (round (mean (icollect [_ rgb (ipairs pixels)] (. rgb 2))) 1)
-        mean_b (round (mean (icollect [_ rgb (ipairs pixels)] (. rgb 3))) 1)]
-    [mean_r mean_g mean_b]))
+  (if (not= (length pixels) 0)
+      (let [mean_r (round (mean (icollect [_ rgb (ipairs pixels)] (. rgb 1))) 1)
+            mean_g (round (mean (icollect [_ rgb (ipairs pixels)] (. rgb 2))) 1)
+            mean_b (round (mean (icollect [_ rgb (ipairs pixels)] (. rgb 3))) 1)]
+        [mean_r mean_g mean_b])
+      [0 0 0]))
 
-(fn get-greatest-range [pixels]
-  "Returns the index of the colour channel with the greatest range
+(fn sse [pixels]
+  (let [[mu_r mu_g mu_b] (mean-pixel pixels)]
+    (accumulate [sum 0 _ pxl (ipairs pixels)]
+      (+ sum (square (- (. pxl 1) mu_r)) (square (- (. pxl 2) mu_g))
+         (square (- (. pxl 3) mu_b))))))
+
+(fn get-greatest-variance [pixels]
+  "Returns the index of the colour channel with the greatest variance
    in a collection of pixels."
-  (var max_range -1)
-  (var greatest_ch -1)
+  (var max_var -1)
+  (var max_ch -1)
   (for [ch_idx 1 3]
-    (let [rng (range (icollect [_ rgb (ipairs pixels)] (. rgb ch_idx)))]
-      (if (> rng max_range)
+    (let [v (variance (icollect [_ rgb (ipairs pixels)] (. rgb ch_idx)))]
+      (if (> v max_var)
           (do
-            (set max_range rng)
-            (set greatest_ch ch_idx)))))
-  greatest_ch)
+            (set max_var v)
+            (set max_ch ch_idx)))))
+  max_ch)
 
-(fn median-cut [pixels n buckets]
-  "Performs the median cut colour quantisation algorithm."
-  (if (= n 1)
-      (table.insert buckets pixels)
-      (let [ch_idx (get-greatest-range pixels)
+(fn binary-insert [tbl item comp]
+  (var low 1)
+  (var high (length tbl))
+  (if (or (= high 0) (comp (. tbl high) item))
+      (table.insert tbl (+ high 1) item)
+      (do
+        (while (< low high)
+          (let [mid (// (+ low high) 2)
+                element (. tbl mid)]
+            (if (comp item element)
+                (set high (- mid 1))
+                (if (comp element item)
+                    (set low (+ mid 1))
+                    (do
+                      (set low mid) (set high mid))))))
+        (table.insert tbl low item))))
+
+(fn binary-search [tbl key low high]
+  (if (> low high)
+      (- low 1)
+      (let [mid (// (+ low high) 2)
+            mid_el (. tbl mid)]
+        (if (= mid_el key)
+            (do
+              (var return mid)
+              (for [i mid high]
+                (if (= (. tbl i) key)
+                    (set return i)))
+              return)
+            (if (> key mid_el)
+                (binary-search tbl key (+ mid 1) high)
+                (binary-search tbl key low (- mid 1)))))))
+
+(fn linear-search [tbl item]
+  (var idx -1)
+  (for [i 1 (length tbl)]
+    (if (<= (. tbl i) item)
+        (set idx i)))
+  idx)
+
+(fn median-cut [buckets n]
+  (if (= (length buckets) n)
+      buckets
+      (let [bucket (. buckets 1)
+            ch_idx (get-greatest-variance bucket)
+            ch_mean (round (mean (icollect [_ rgb (ipairs bucket)]
+                                   (. rgb ch_idx))))
             lower_half []
             upper_half []
-            len (length pixels)
-            half (// len 2)]
-        (table.sort pixels #(< (. $1 ch_idx) (. $2 ch_idx)))
-        (table.move pixels 1 half 1 lower_half)
-        (table.move pixels (+ half 1) len 1 upper_half)
-        (median-cut lower_half (/ n 2) buckets)
-        (median-cut upper_half (/ n 2) buckets))))
+            len (length bucket)]
+        (table.sort bucket #(< (. $1 ch_idx) (. $2 ch_idx)))
+        (local ch_mean_idx
+               (binary-search (icollect [_ rgb (ipairs bucket)] (. rgb ch_idx))
+                              ch_mean 1 (length bucket)))
+        (table.move bucket 1 ch_mean_idx 1 lower_half)
+        (table.move bucket (+ ch_mean_idx 1) len 1 upper_half)
+        (tset lower_half :sse (sse lower_half))
+        (tset upper_half :sse (sse upper_half))
+        (table.remove buckets 1)
+        (binary-insert buckets lower_half #(< (. $1 :sse) (. $2 :sse)))
+        (binary-insert buckets upper_half #(< (. $1 :sse) (. $2 :sse)))
+        (median-cut buckets n))))
 ;; --------------------------------------------------------------------
 
 (fn render []
@@ -253,13 +301,12 @@
             r (make-ray camera_center ray_direction)
             pixel_colour (ray-colour r)]
         (table.insert scanline (write-colour pixel_colour i))))
-    (let [buckets []
+    (let [buckets (median-cut [scanline] 16)
           palette []]
-      (median-cut scanline 16 buckets)
       (each [pal_idx bucket (ipairs buckets)]
         (table.insert palette (mean-pixel bucket))
         (each [_ pxl (ipairs bucket)]
-          (pix (. pxl 4) j pal_idx)))
+          (pix (. pxl 4) j (- pal_idx 1))))
       (table.insert palettes palette))
     (set left (- left 1))
     (trace (.. "Scanlines left: " left))))
