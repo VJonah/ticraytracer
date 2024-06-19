@@ -163,13 +163,13 @@
 ;; objects
 (fn hit-sphere [center radius ray]
   (let [oc (vec- center ray.orig)
-        a (vec-dot ray.dir ray.dir)
-        b (* -2.0 (vec-dot ray.dir oc))
-        c (- (vec-dot oc oc) (* radius radius))
-        discriminant (- (* b b) (* 4 a c))]
+        a (vec-len-sq ray.dir)
+        h (vec-dot ray.dir oc)
+        c (- (vec-len-sq oc) (* radius radius))
+        discriminant (- (* h h) (* a c))]
     (if (< discriminant 0)
         -1
-        (/ (- (- b) (math.sqrt discriminant)) (* 2 a)))))
+        (/ (- h (math.sqrt discriminant)) a))))
 
 ;; --------------------------------------------------------------------
 
