@@ -160,17 +160,30 @@
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
-;; objects
-(fn hit-sphere [center radius ray]
-  (let [oc (vec- center ray.orig)
-        a (vec-len-sq ray.dir)
-        h (vec-dot ray.dir oc)
-        c (- (vec-len-sq oc) (* radius radius))
-        discriminant (- (* h h) (* a c))]
-    (if (< discriminant 0)
-        -1
-        (/ (- h (math.sqrt discriminant)) a))))
+;; hittables
+(make-hit-record [p normal t] {: p : normal : t})
 
+(make-sphere [center radius]
+             {: center
+              : radius
+              :hit (fn hit-sphere [self ray ray_tmin ray_tmax rec]
+                     (let [oc (vec- center ray.orig)
+                           a (vec-len-sq ray.dir)
+                           h (vec-dot ray.dir oc)
+                           c (- (vec-len-sq oc) (* radius radius))
+                           discriminant (- (* h h) (* a c))]
+                       (if (< discriminant 0) false)
+                       (local sqrtd (math.sqrt discriminant))
+                       (var root (/ (- h sqrtd) a))
+                       (if (or (<= root ray_tmin) (<= ray_tmax root))
+                           (do (set root (/ (+ h sqrtd)))
+                               (if (or (<= root ray_tmin) (<= ray_tmax root))
+                                   false)))
+                       (tset rec t root)
+                       (tset rec p (ray:at rec.t))
+                       (tset rec normal (vec-div (vec- rec.p center) radius))
+                       true))
+              })
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
