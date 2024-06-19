@@ -38,6 +38,7 @@
   "Rounds floats (from lume.lua)."
   (if increment (* (round (/ x increment)) increment))
   (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
+
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -129,6 +130,7 @@
         g (math.floor (* 255.999 c.y))
         b (math.floor (* 255.999 c.z))]
     [r g b col]))
+
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -154,6 +156,7 @@
 (local pixel00_loc
        (vec+ viewport_upper_left (vec-mul (vec+ pixel_delta_u pixel_delta_v)
                                           0.5)))
+
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -167,6 +170,7 @@
     (if (< discriminant 0)
         -1
         (/ (- (- b) (math.sqrt discriminant)) (* 2 a)))))
+
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -178,8 +182,7 @@
   (let [t (hit-sphere (make-point 0 0 -1) 0.5 r)]
     (if (> t 0)
         (let [N (unit-vector (vec- (r:at t) (make-vector 0 0 -1)))]
-          (vec-mul (make-colour (+ N.x 1) (+ N.y 1) (+ N.z 1))
-                   0.5))
+          (vec-mul (make-colour (+ N.x 1) (+ N.y 1) (+ N.z 1)) 0.5))
         (let [unit_direction (unit-vector r.dir)
               a (* 0.5 (+ unit_direction.y 1))]
           (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
@@ -189,6 +192,7 @@
   "Rounds floats (from lume.lua)."
   (if increment (* (round (/ x increment)) increment))
   (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
+
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -243,7 +247,8 @@
                 (if (comp element item)
                     (set low (+ mid 1))
                     (do
-                      (set low mid) (set high mid))))))
+                      (set low mid)
+                      (set high mid))))))
         (table.insert tbl low item))))
 
 (fn binary-search [tbl key low high]
@@ -291,17 +296,16 @@
         (binary-insert buckets lower_half #(< (. $1 :sse) (. $2 :sse)))
         (binary-insert buckets upper_half #(< (. $1 :sse) (. $2 :sse)))
         (median-cut buckets n))))
+
 ;; --------------------------------------------------------------------
 
-(fn render []
+(fn render-scanline [row]
   "Calculates colour value of each pixel and sets them to frame, scan
    line by scanline."
-  (var left height)
-  (for [j 0 (- height 1)]
-    (local scanline [])
-    (for [i 0 (- width 1)]
+  (let [scanline []]
+    (for [i 0 (- width 1) 1]
       (let [pixel_center (vec+ pixel00_loc (vec-mul pixel_delta_u i)
-                               (vec-mul pixel_delta_v j))
+                               (vec-mul pixel_delta_v row))
             ray_direction (vec- pixel_center camera_center)
             r (make-ray camera_center ray_direction)
             pixel_colour (ray-colour r)]
@@ -311,30 +315,31 @@
       (each [pal_idx bucket (ipairs buckets)]
         (table.insert palette (mean-pixel bucket))
         (each [_ pxl (ipairs bucket)]
-          (pix (. pxl 4) j (- pal_idx 1))))
+          (pix (. pxl 4) row (- pal_idx 1))))
       (table.insert palettes palette))
-    (set left (- left 1))
-    (trace (.. "Scanlines left: " left))))
+    (trace (.. "Scanline " row " done!"))))
 
-;; clear once
-(cls)
+;; clear at boot
+(fn _G.BOOT [] (cls))
 
-;; call 'render'
-(render)
+(var rendering? false)
+(var row 0)
 
 (fn _G.TIC []
-  "game loop that's called 60/s")
+  (when (and (not rendering?) (< row height))
+    (set rendering? true)
+    (render-scanline row)
+    (set row (+ row 1))
+    (set rendering? false)))
 
 (fn _G.BDR [scanline]
-  "called between rendering each scanline"
-  (if (not= (length palettes) 0)
-      (let [line_no (- scanline 3)
-            palette (. palettes line_no)]
+  (if (and (> scanline 3) (< scanline 140))
+      (let [uine_no (- scanline 3)
+            palette (. palettes (- scanline 3))]
         (if palette
             (change-palette palette)
-            (if (and palettes (< line_no 1))
-                (change-palette (. palettes 1))
-                (change-palette (. palettes 136)))))))
+            (change-palette [[0 0 0]])))
+      (change-palette [[0 0 0]])))
 
 ;; <PALETTE>
 ;; 000:101010202020303030404040505050606060707070808080909090a0a0a0b0b0b0c0c0c0d0d0d0e0e0e0f0f0f0ffffff
