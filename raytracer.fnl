@@ -41,11 +41,15 @@
   (if increment (* (round (/ x increment)) increment))
   (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
 
-(fn random-float [min max] (+ min (* (- max min) (math.random))))
+(fn random-float [min max]
+  (+ min (* (- max min) (math.random))))
+
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; vectors
+(fn vec2str [v] (.. "(" v.x ", " v.y ", " v.z ")"))
+
 (fn make-vector [x y z]
   "Creates a vector object."
   {:x (or x 0)
@@ -62,6 +66,13 @@
    :/= (fn [self t] (self:*= (/ 1 t)))})
 
 (fn make-point [x y z] (make-vector x y z))
+
+(fn make-vec-rand []
+  (make-vector (math.random) (math.random) (math.random)))
+
+(fn make-vec-rand-rng [min max]
+  (make-vector (random-float min max) (random-float min max)
+               (random-float min max)))
 
 (fn vec-at [v i]
   "Makes vector coordinates 0-indexable."
@@ -127,9 +138,24 @@
 
 (fn unit-vector [v] (vec-div v (vec-len v)))
 
-(fn vec2str [v] (.. "(" v.x ", " v.y ", " v.z ")"))
-;; --------------------------------------------------------------------
+(fn random-in-unit-sphere []
+  (var p (make-vec-rand-rng -1 1))
+  (var continue? true)
+  (while continue?
+    (if (< (vec-len-sq p) 1)
+        (set continue? false)
+        (set p (make-vec-rand-rng -1 1))))
+  p)
 
+(fn random-unit-vector [] (unit-vector (random-in-unit-sphere)))
+
+(fn random-on-hemisphere [normal]
+  (let [on_unit_sphere (random-unit-vector)]
+    (if (vec-dot on_unit_sphere normal)
+        on_unit_sphere
+        (vec-neg on_unit_sphere))))
+
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; camera
@@ -158,8 +184,8 @@
 (local pixel00_loc
        (vec+ viewport_upper_left (vec-mul (vec+ pixel_delta_u pixel_delta_v)
                                           0.5)))
-;; --------------------------------------------------------------------
 
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; intervals
@@ -174,8 +200,8 @@
                 self.min
                 (if (> x self.max)
                     self.max
-                    x)))
-   })
+                    x)))})
+
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -257,28 +283,28 @@
 (fn ray-colour [r world]
   (var rec (make-hit-record))
   (if (world:hit r (make-interval 0 math.huge) rec)
-      (vec-mul (vec+ rec.normal (make-colour 1 1 1)) 0.5)
+      (let [direction (random-on-hemisphere rec.normal)]
+        (vec-mul (ray-colour (make-ray rec.p direction) world) 0.5))
       (let [unit_direction (unit-vector r.dir)
             a (* 0.5 (+ unit_direction.y 1))]
         (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
               (vec-mul (make-colour 0.5 0.7 1) a)))))
 
-
 (fn sample-square []
   "Returns the vector of a random point in the [-.5, -.5] [+.5, +.5]
    unit square."
-  (make-vector (- (math.random) 0.5)  (- (math.random) 0.5) 0))
+  (make-vector (- (math.random) 0.5) (- (math.random) 0.5) 0))
 
 (fn get-ray [i j]
   "Construct a camera ray originating from the origin and directed
    at randomly sampled point around the pixel location i,j."
   (let [offset (sample-square)
-        pixel_sample (vec+ pixel00_loc
-                           (vec-mul pixel_delta_u (+ i offset.x))
+        pixel_sample (vec+ pixel00_loc (vec-mul pixel_delta_u (+ i offset.x))
                            (vec-mul pixel_delta_v (+ j offset.y)))
         ray_origin camera_center
         ray_direction (vec- pixel_sample ray_origin)]
     (make-ray ray_origin ray_direction)))
+
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -287,8 +313,6 @@
 (world:add (make-sphere (make-point 0 0 -1) 0.5))
 (world:add (make-sphere (make-point 0 -100.5 -1) 100))
 ;; --------------------------------------------------------------------
-
-
 
 ;; --------------------------------------------------------------------
 ;; colour quantisation
@@ -403,9 +427,9 @@
         (for [_ 1 samples_per_pixel]
           (let [ray (get_ray i row)]
             (vec-add pixel_colour (ray-colour ray world))))
-        (table.insert scanline
-                      (write-colour (vec-mul pixel_colour pixel_samples_scale)
-                                    i))))
+        (table.insert scanline (write-colour (vec-mul pixel_colour
+                                                      pixel_samples_scale)
+                                             i))))
     (let [buckets (median-cut [scanline] 16)
           palette []]
       (each [pal_idx bucket (ipairs buckets)]
