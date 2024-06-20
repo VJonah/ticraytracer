@@ -39,6 +39,7 @@
   (if increment (* (round (/ x increment)) increment))
   (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
 
+(fn degrees-to-radians [degrees] (/ (degrees math.pi) 180))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -161,29 +162,59 @@
 
 ;; --------------------------------------------------------------------
 ;; hittables
-(make-hit-record [p normal t] {: p : normal : t})
+(fn make-hit-record []
+                 {:copy (lambda [self other_rec]
+                          (let [{: p : normal : t} other_rec]
+                            (tset self :p p)
+                            (tset self :normal normal)
+                            (tset self :t t)))
+                  :set_face_normal (lambda [self ray outward_normal]
+                                     (tset self :front_face (< (vec-dot ray.dir outward_normal) 0))
+                                     (tset self :normal (if self.front_face
+                                                           outward_normal
+                                                           (vec-neg outward_normal))))
+                  })
 
-(make-sphere [center radius]
+(fn make-sphere [center radius]
              {: center
               : radius
-              :hit (fn hit-sphere [self ray ray_tmin ray_tmax rec]
-                     (let [oc (vec- center ray.orig)
-                           a (vec-len-sq ray.dir)
-                           h (vec-dot ray.dir oc)
-                           c (- (vec-len-sq oc) (* radius radius))
-                           discriminant (- (* h h) (* a c))]
-                       (if (< discriminant 0) false)
-                       (local sqrtd (math.sqrt discriminant))
-                       (var root (/ (- h sqrtd) a))
-                       (if (or (<= root ray_tmin) (<= ray_tmax root))
-                           (do (set root (/ (+ h sqrtd)))
-                               (if (or (<= root ray_tmin) (<= ray_tmax root))
-                                   false)))
-                       (tset rec t root)
-                       (tset rec p (ray:at rec.t))
-                       (tset rec normal (vec-div (vec- rec.p center) radius))
-                       true))
+              :hit (lambda [self ray ray_tmin ray_tmax rec]
+                            (let [center self.center
+                                  radius self.radius
+                                  oc (vec- center ray.orig)
+                                  a (vec-len-sq ray.dir)
+                                  h (vec-dot ray.dir oc)
+                                  c (- (vec-len-sq oc) (* radius radius))
+                                  discriminant (- (* h h) (* a c))]
+                              (var hit_anything? true)
+                              (if (< discriminant 0) (set hit_anything? false))
+                              (local sqrtd (math.sqrt discriminant))
+                              (var root (/ (- h sqrtd) a))
+                              (if (or (<= root ray_tmin) (<= ray_tmax root))
+                                  (do (set root (/ (+ h sqrtd) a))
+                                      (if (or (<= root ray_tmin) (<= ray_tmax root))
+                                          (set hit_anything? false))))
+                              (tset rec :t root)
+                              (tset rec :p (ray:at rec.t))
+                              (local outward_normal (vec-div (vec- rec.p center) radius))
+                              (rec:set_face_normal ray outward_normal)
+                              hit_anything?))
               })
+(fn make-hittable-list []
+  {
+   :objects []
+   :add (lambda [self obj] (table.insert self.objects obj))
+   :hit (lambda [self ray ray_tmin ray_tmax rec]
+          (var temp_rec (make-hit-record))
+          (var hit_anything false)
+          (var closest_so_far ray_tmax)
+          (each [_ obj (ipairs self.objects)]
+            (if (obj:hit ray ray_tmin closest_so_far temp_rec)
+                (do (set hit_anything true)
+                    (set closest_so_far temp_rec.t)
+                    (rec:copy temp_rec))))
+          hit_anything)
+   })
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -191,21 +222,22 @@
 (fn make-ray [orig dir]
   {: orig : dir :at (fn [self t] (vec+ self.orig (vec-mul self.dir t)))})
 
-(fn ray-colour [r]
-  (let [t (hit-sphere (make-point 0 0 -1) 0.5 r)]
-    (if (> t 0)
-        (let [N (unit-vector (vec- (r:at t) (make-vector 0 0 -1)))]
-          (vec-mul (make-colour (+ N.x 1) (+ N.y 1) (+ N.z 1)) 0.5))
-        (let [unit_direction (unit-vector r.dir)
-              a (* 0.5 (+ unit_direction.y 1))]
-          (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
-                (vec-mul (make-colour 0.5 0.7 1) a))))))
+(fn ray-colour [r world]
+  (var rec (make-hit-record))
+  (if (world:hit r 0 math.huge rec)
+      (vec-mul (vec+ rec.normal (make-colour 1 1 1)) 0.5)
+      (let [unit_direction (unit-vector r.dir)
+            a (* 0.5 (+ unit_direction.y 1))]
+        (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
+              (vec-mul (make-colour 0.5 0.7 1) a)))))
+;; --------------------------------------------------------------------
 
-(fn round [x ?increment]
-  "Rounds floats (from lume.lua)."
-  (if increment (* (round (/ x increment)) increment))
-  (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
 
+;; --------------------------------------------------------------------
+;; world
+(local world (make-hittable-list))
+(world:add (make-sphere (make-point 0 0 -1) 0.5))
+(world:add (make-sphere (make-point 0 -100.5 -1) 100))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -321,7 +353,7 @@
                                (vec-mul pixel_delta_v row))
             ray_direction (vec- pixel_center camera_center)
             r (make-ray camera_center ray_direction)
-            pixel_colour (ray-colour r)]
+            pixel_colour (ray-colour r world)]
         (table.insert scanline (write-colour pixel_colour i))))
     (let [buckets (median-cut [scanline] 16)
           palette []]
