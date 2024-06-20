@@ -266,11 +266,16 @@
 ;; --------------------------------------------------------------------
 ;; colours
 (fn make-colour [x y z] (make-vector x y z))
+
+(fn linear-to-gamma [linear_component]
+  (if (> linear_component 0)
+      (math.sqrt linear_component) 0))
+
 (fn write-colour [c col]
-  (let [interval (make-interval 0 0.999)
-        r (math.floor (* 256 (interval:clamp c.x)))
-        g (math.floor (* 256 (interval:clamp c.y)))
-        b (math.floor (* 256 (interval:clamp c.z)))]
+  (let [interval (make-interval 0.0 0.999)
+        r (math.floor (* 256 (interval:clamp (linear-to-gamma c.x))))
+        g (math.floor (* 256 (interval:clamp (linear-to-gamma c.y))))
+        b (math.floor (* 256 (interval:clamp (linear-to-gamma c.z))))]
     [r g b col]))
 
 ;; --------------------------------------------------------------------
@@ -282,7 +287,7 @@
 
 (fn ray-colour [r world]
   (var rec (make-hit-record))
-  (if (world:hit r (make-interval 0.0001 math.huge) rec)
+  (if (world:hit r (make-interval 1e-05 math.huge) rec)
       (let [direction (vec+ rec.normal (random-unit-vector))]
         (vec-mul (ray-colour (make-ray rec.p direction) world) 0.5))
       (let [unit_direction (unit-vector r.dir)
