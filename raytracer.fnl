@@ -417,8 +417,8 @@
         (tset lower_half :sse (sse lower_half))
         (tset upper_half :sse (sse upper_half))
         (table.remove buckets 1)
-        (binary-insert buckets lower_half #(< (. $1 :sse) (. $2 :sse)))
-        (binary-insert buckets upper_half #(< (. $1 :sse) (. $2 :sse)))
+        (binary-insert buckets lower_half #(> (. $1 :sse) (. $2 :sse)))
+        (binary-insert buckets upper_half #(> (. $1 :sse) (. $2 :sse)))
         (median-cut buckets n))))
 
 ;; --------------------------------------------------------------------
