@@ -160,61 +160,75 @@
 
 ;; --------------------------------------------------------------------
 
+
+;; --------------------------------------------------------------------
+;; intervals
+(fn make-interval [min max]
+  {: min
+   : max
+   :size (lambda [self] (- self.max self.min))
+   :contains (lambda [self x] (and (<= self.min x) (<= x self.max)))
+   :surrounds (lambda [self x] (and (< self.min x) (< x self.max)))
+   })
+;; --------------------------------------------------------------------
+
 ;; --------------------------------------------------------------------
 ;; hittables
 (fn make-hit-record []
-                 {:copy (lambda [self other_rec]
-                          (let [{: p : normal : t} other_rec]
-                            (tset self :p p)
-                            (tset self :normal normal)
-                            (tset self :t t)))
-                  :set_face_normal (lambda [self ray outward_normal]
-                                     (tset self :front_face (< (vec-dot ray.dir outward_normal) 0))
-                                     (tset self :normal (if self.front_face
-                                                           outward_normal
-                                                           (vec-neg outward_normal))))
-                  })
+  {:copy (lambda [self other_rec]
+           (let [{: p : normal : t} other_rec]
+             (tset self :p p)
+             (tset self :normal normal)
+             (tset self :t t)))
+   :set_face_normal (lambda [self ray outward_normal]
+                      (tset self :front_face
+                            (< (vec-dot ray.dir outward_normal) 0))
+                      (tset self :normal
+                            (if self.front_face
+                                outward_normal
+                                (vec-neg outward_normal))))})
 
 (fn make-sphere [center radius]
-             {: center
-              : radius
-              :hit (lambda [self ray ray_tmin ray_tmax rec]
-                            (let [center self.center
-                                  radius self.radius
-                                  oc (vec- center ray.orig)
-                                  a (vec-len-sq ray.dir)
-                                  h (vec-dot ray.dir oc)
-                                  c (- (vec-len-sq oc) (* radius radius))
-                                  discriminant (- (* h h) (* a c))]
-                              (var hit_anything? true)
-                              (if (< discriminant 0) (set hit_anything? false))
-                              (local sqrtd (math.sqrt discriminant))
-                              (var root (/ (- h sqrtd) a))
-                              (if (or (<= root ray_tmin) (<= ray_tmax root))
-                                  (do (set root (/ (+ h sqrtd) a))
-                                      (if (or (<= root ray_tmin) (<= ray_tmax root))
-                                          (set hit_anything? false))))
-                              (tset rec :t root)
-                              (tset rec :p (ray:at rec.t))
-                              (local outward_normal (vec-div (vec- rec.p center) radius))
-                              (rec:set_face_normal ray outward_normal)
-                              hit_anything?))
-              })
+  {: center
+   : radius
+   :hit (lambda [self ray ray_t rec]
+          (let [center self.center
+                radius self.radius
+                oc (vec- center ray.orig)
+                a (vec-len-sq ray.dir)
+                h (vec-dot ray.dir oc)
+                c (- (vec-len-sq oc) (* radius radius))
+                discriminant (- (* h h) (* a c))]
+            (var hit_anything? true)
+            (if (< discriminant 0) (set hit_anything? false))
+            (local sqrtd (math.sqrt discriminant))
+            (var root (/ (- h sqrtd) a))
+            (if (not (ray_t:surrounds root))
+                (do
+                  (set root (/ (+ h sqrtd) a))
+                  (if (not (ray_t:surrounds root))
+                      (set hit_anything? false))))
+            (tset rec :t root)
+            (tset rec :p (ray:at rec.t))
+            (local outward_normal (vec-div (vec- rec.p center) radius))
+            (rec:set_face_normal ray outward_normal)
+            hit_anything?))})
+
 (fn make-hittable-list []
-  {
-   :objects []
+  {:objects []
    :add (lambda [self obj] (table.insert self.objects obj))
-   :hit (lambda [self ray ray_tmin ray_tmax rec]
+   :hit (lambda [self ray ray_t rec]
           (var temp_rec (make-hit-record))
           (var hit_anything false)
-          (var closest_so_far ray_tmax)
+          (var closest_so_far ray_t.max)
           (each [_ obj (ipairs self.objects)]
-            (if (obj:hit ray ray_tmin closest_so_far temp_rec)
-                (do (set hit_anything true)
-                    (set closest_so_far temp_rec.t)
-                    (rec:copy temp_rec))))
-          hit_anything)
-   })
+            (if (obj:hit ray (make-interval ray_t.min closest_so_far) temp_rec)
+                (do
+                  (set hit_anything true)
+                  (set closest_so_far temp_rec.t)
+                  (rec:copy temp_rec))))
+          hit_anything)})
+
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -224,14 +238,14 @@
 
 (fn ray-colour [r world]
   (var rec (make-hit-record))
-  (if (world:hit r 0 math.huge rec)
+  (if (world:hit r (make-interval 0 math.huge) rec)
       (vec-mul (vec+ rec.normal (make-colour 1 1 1)) 0.5)
       (let [unit_direction (unit-vector r.dir)
             a (* 0.5 (+ unit_direction.y 1))]
         (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
               (vec-mul (make-colour 0.5 0.7 1) a)))))
-;; --------------------------------------------------------------------
 
+;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; world
