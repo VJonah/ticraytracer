@@ -5,6 +5,8 @@
 ;; screen width and height
 (local height 136)
 (local width 240)
+;; initialise random seed to current time
+(math.randomseed (tstamp))
 ;; a collection of palettes for each line
 (local palettes [])
 
@@ -39,7 +41,7 @@
   (if increment (* (round (/ x increment)) increment))
   (or (and (>= x 0) (math.floor (+ x 0.5))) (math.ceil (- x 0.5))))
 
-(fn degrees-to-radians [degrees] (/ (degrees math.pi) 180))
+(fn random-float [min max] (+ min (* (- max min) (math.random))))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -109,6 +111,11 @@
 
 (fn vec-div [v t] (vec-mul v (/ 1 t)))
 
+(fn vec-add [v1 v2]
+  (tset v1 :x (+ v1.x v2.x))
+  (tset v1 :y (+ v1.y v2.y))
+  (tset v1 :z (+ v1.z v2.z)))
+
 (fn vec-dot [v1 v2]
   "Vector dot product."
   (+ (* v1.x v2.x) (* v1.y v2.y) (* v1.z v2.z)))
@@ -123,16 +130,6 @@
 (fn vec2str [v] (.. "(" v.x ", " v.y ", " v.z ")"))
 ;; --------------------------------------------------------------------
 
-;; --------------------------------------------------------------------
-;; colours
-(fn make-colour [x y z] (make-vector x y z))
-(fn write-colour [c col]
-  (let [r (math.floor (* 255.999 c.x))
-        g (math.floor (* 255.999 c.y))
-        b (math.floor (* 255.999 c.z))]
-    [r g b col]))
-
-;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
 ;; camera
@@ -140,6 +137,10 @@
 (local viewport_height 2.0)
 (local viewport_width (* viewport_height (/ width height)))
 (local camera_center (make-point 0 0 0))
+;; count of random samples for each pixel
+(local samples_per_pixel 100)
+;; colour scale factor for a sum of pixel samples
+(local pixel_samples_scale (/ 1 samples_per_pixel))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -157,7 +158,6 @@
 (local pixel00_loc
        (vec+ viewport_upper_left (vec-mul (vec+ pixel_delta_u pixel_delta_v)
                                           0.5)))
-
 ;; --------------------------------------------------------------------
 
 
@@ -169,6 +169,12 @@
    :size (lambda [self] (- self.max self.min))
    :contains (lambda [self x] (and (<= self.min x) (<= x self.max)))
    :surrounds (lambda [self x] (and (< self.min x) (< x self.max)))
+   :clamp (lambda [self x]
+            (if (< x self.min)
+                self.min
+                (if (> x self.max)
+                    self.max
+                    x)))
    })
 ;; --------------------------------------------------------------------
 
@@ -232,6 +238,18 @@
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
+;; colours
+(fn make-colour [x y z] (make-vector x y z))
+(fn write-colour [c col]
+  (let [interval (make-interval 0 0.999)
+        r (math.floor (* 256 (interval:clamp c.x)))
+        g (math.floor (* 256 (interval:clamp c.y)))
+        b (math.floor (* 256 (interval:clamp c.z)))]
+    [r g b col]))
+
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; rays
 (fn make-ray [orig dir]
   {: orig : dir :at (fn [self t] (vec+ self.orig (vec-mul self.dir t)))})
@@ -245,6 +263,22 @@
         (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
               (vec-mul (make-colour 0.5 0.7 1) a)))))
 
+
+(fn sample-square []
+  "Returns the vector of a random point in the [-.5, -.5] [+.5, +.5]
+   unit square."
+  (make-vector (- (math.random) 0.5)  (- (math.random) 0.5) 0))
+
+(fn get-ray [i j]
+  "Construct a camera ray originating from the origin and directed
+   at randomly sampled point around the pixel location i,j."
+  (let [offset (sample-square)
+        pixel_sample (vec+ pixel00_loc
+                           (vec-mul pixel_delta_u (+ i offset.x))
+                           (vec-mul pixel_delta_v (+ j offset.y)))
+        ray_origin camera_center
+        ray_direction (vec- pixel_sample ray_origin)]
+    (make-ray ray_origin ray_direction)))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -253,6 +287,8 @@
 (world:add (make-sphere (make-point 0 0 -1) 0.5))
 (world:add (make-sphere (make-point 0 -100.5 -1) 100))
 ;; --------------------------------------------------------------------
+
+
 
 ;; --------------------------------------------------------------------
 ;; colour quantisation
@@ -363,12 +399,13 @@
    line by scanline."
   (let [scanline []]
     (for [i 0 (- width 1) 1]
-      (let [pixel_center (vec+ pixel00_loc (vec-mul pixel_delta_u i)
-                               (vec-mul pixel_delta_v row))
-            ray_direction (vec- pixel_center camera_center)
-            r (make-ray camera_center ray_direction)
-            pixel_colour (ray-colour r world)]
-        (table.insert scanline (write-colour pixel_colour i))))
+      (let [pixel_colour (make-colour 0 0 0)]
+        (for [_ 1 samples_per_pixel]
+          (let [ray (get_ray i row)]
+            (vec-add pixel_colour (ray-colour ray world))))
+        (table.insert scanline
+                      (write-colour (vec-mul pixel_colour pixel_samples_scale)
+                                    i))))
     (let [buckets (median-cut [scanline] 16)
           palette []]
       (each [pal_idx bucket (ipairs buckets)]
