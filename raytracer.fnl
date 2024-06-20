@@ -282,7 +282,7 @@
 
 (fn ray-colour [r world]
   (var rec (make-hit-record))
-  (if (world:hit r (make-interval 0 math.huge) rec)
+  (if (world:hit r (make-interval 0.001 math.huge) rec)
       (let [direction (random-on-hemisphere rec.normal)]
         (vec-mul (ray-colour (make-ray rec.p direction) world) 0.5))
       (let [unit_direction (unit-vector r.dir)
