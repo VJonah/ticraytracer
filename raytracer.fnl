@@ -337,13 +337,21 @@
                               (local scattered (make-ray rec.p scatter_direction))
                               (local attenuation self.albedo)
                               (values scattered attenuation true))})
-(fn make-metal [albedo] {
+(fn make-metal [albedo fuzz] {
               : albedo
+              :fuzz (if (< fuzz 1) fuzz 1)
               :scatter (lambda [self r_in rec]
-                         (let [reflected (vec-reflect r_in.dir rec.normal)
-                               scattered (make-ray rec.p reflected)
-                               attenuation self.albedo]
-                           (values scattered attenuation true)))
+                         (var reflected (vec-reflect r_in.dir rec.normal))
+                         (set reflected (unit-vector (vec+ reflected
+                                                           (vec-mul (random-unit-vector)
+                                                                    self.fuzz))))
+
+                         (local scattered (make-ray rec.p reflected))
+                         (local attenuation self.albedo)
+                         (local succeeded? (> (vec-dot scattered.dir
+                                                       rec.normal)
+                                              0))
+                         (values scattered attenuation succeeded?))
               })
 ;; --------------------------------------------------------------------
 
@@ -352,8 +360,8 @@
 (local world (make-hittable-list))
 (local material_ground (make-lambertian (make-colour 0.8 0.8 0)))
 (local material_center (make-lambertian (make-colour 0.1 0.2 0.5)))
-(local material_left (make-metal (make-colour 0.8 0.8 0.8)))
-(local material_right (make-metal (make-colour 0.8 0.6 0.2)))
+(local material_left (make-metal (make-colour 0.8 0.8 0.8) 0.3))
+(local material_right (make-metal (make-colour 0.8 0.6 0.2) 1))
 
 (world:add (make-sphere (make-point 0 -100.5 -1) 100 material_ground))
 (world:add (make-sphere (make-point 0 0 -1.2) 0.5 material_center))
