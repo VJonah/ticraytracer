@@ -155,6 +155,14 @@
         on_unit_sphere
         (vec-neg on_unit_sphere))))
 
+(fn vec-near-zero [v]
+  "Checks if all of a vector's components are near 0."
+  (let [s 0.00000001]
+    (and (< (math.abs v.x) s) (< (math.abs v.y) s) (< (math.abs v.z) s))))
+
+(fn vec-reflect [v n]
+  "Reflects a vector with respect to a normal"
+  (vec- v (vec-mul n (* (vec-dot v n) 2))))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -208,10 +216,11 @@
 ;; hittables
 (fn make-hit-record []
   {:copy (lambda [self other_rec]
-           (let [{: p : normal : t} other_rec]
+           (let [{: p : normal : t : mat} other_rec]
              (tset self :p p)
              (tset self :normal normal)
-             (tset self :t t)))
+             (tset self :t t)
+             (tset self :mat mat)))
    :set_face_normal (lambda [self ray outward_normal]
                       (tset self :front_face
                             (< (vec-dot ray.dir outward_normal) 0))
@@ -220,9 +229,10 @@
                                 outward_normal
                                 (vec-neg outward_normal))))})
 
-(fn make-sphere [center radius]
+(fn make-sphere [center radius mat]
   {: center
    : radius
+   : mat
    :hit (lambda [self ray ray_t rec]
           (let [center self.center
                 radius self.radius
@@ -244,6 +254,7 @@
             (tset rec :p (ray:at rec.t))
             (local outward_normal (vec-div (vec- rec.p center) radius))
             (rec:set_face_normal ray outward_normal)
+            (tset rec :mat self.mat)
             hit_anything?))})
 
 (fn make-hittable-list []
@@ -288,8 +299,10 @@
 (fn ray-colour [r world]
   (var rec (make-hit-record))
   (if (world:hit r (make-interval 1e-05 math.huge) rec)
-      (let [direction (vec+ rec.normal (random-unit-vector))]
-        (vec-mul (ray-colour (make-ray rec.p direction) world) 0.5))
+      (let [(scattered attenuation success?) (rec.mat:scatter r rec)]
+        (if success?
+            (vec* attenuation (ray-colour scattered world))
+            (make-colour 0 0 0)))
       (let [unit_direction (unit-vector r.dir)
             a (* 0.5 (+ unit_direction.y 1))]
         (vec+ (vec-mul (make-colour 1 1 1) (- 1 a))
@@ -313,10 +326,39 @@
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
+;; materials
+(fn make-lambertian [albedo] {
+                   : albedo
+                   :scatter (lambda [self r_in rec]
+                              (var scatter_direction (vec+ rec.normal
+                                                           (random-unit-vector)))
+                              (if (vec-near-zero scatter_direction)
+                                  (set scatter_direction rec.normal))
+                              (local scattered (make-ray rec.p scatter_direction))
+                              (local attenuation self.albedo)
+                              (values scattered attenuation true))})
+(fn make-metal [albedo] {
+              : albedo
+              :scatter (lambda [self r_in rec]
+                         (let [reflected (vec-reflect r_in.dir rec.normal)
+                               scattered (make-ray rec.p reflected)
+                               attenuation self.albedo]
+                           (values scattered attenuation true)))
+              })
+;; --------------------------------------------------------------------
+
+;; --------------------------------------------------------------------
 ;; world
 (local world (make-hittable-list))
-(world:add (make-sphere (make-point 0 0 -1) 0.5))
-(world:add (make-sphere (make-point 0 -100.5 -1) 100))
+(local material_ground (make-lambertian (make-colour 0.8 0.8 0)))
+(local material_center (make-lambertian (make-colour 0.1 0.2 0.5)))
+(local material_left (make-metal (make-colour 0.8 0.8 0.8)))
+(local material_right (make-metal (make-colour 0.8 0.6 0.2)))
+
+(world:add (make-sphere (make-point 0 -100.5 -1) 100 material_ground))
+(world:add (make-sphere (make-point 0 0 -1.2) 0.5 material_center))
+(world:add (make-sphere (make-point -1 0 -1) 0.5 material_left))
+(world:add (make-sphere (make-point 1 0 -1) 0.5 material_right))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
