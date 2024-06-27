@@ -163,6 +163,14 @@
 (fn vec-reflect [v n]
   "Reflects a vector with respect to a normal"
   (vec- v (vec-mul n (* (vec-dot v n) 2))))
+
+(fn vec-refract [uv n etai_over_etar]
+  (let [cos_theta (math.min (vec-dot (vec-neg uv) n) 1)
+        r_out_perp (vec-mul (vec+ uv (vec-mul n cos_theta))
+                            etai_over_etar)
+        r_out_parallel (vec-mul n
+                                (- (math.sqrt (math.abs (- 1 (vec-len-sq r_out_perp))))))]
+    (vec+ r_out_perp r_out_parallel)))
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -353,6 +361,19 @@
                                               0))
                          (values scattered attenuation succeeded?))
               })
+
+(fn make-dielectric [refraction_index] {
+                       : refraction_index
+                       :scatter (lambda [self r_in rec]
+                                  (let [attenuation (make-colour 1 1 1)
+                                        ri (if rec.front_face
+                                                (/ 1 self.refraction_index)
+                                                self.refraction_index)
+                                        unit_direction (unit-vector r_in.dir)
+                                        refracted (vec-refract unit_direction rec.normal ri)
+                                        scattered (make-ray rec.p refracted)]
+                                    (values scattered attenuation true)))
+                       })
 ;; --------------------------------------------------------------------
 
 ;; --------------------------------------------------------------------
@@ -360,7 +381,7 @@
 (local world (make-hittable-list))
 (local material_ground (make-lambertian (make-colour 0.8 0.8 0)))
 (local material_center (make-lambertian (make-colour 0.1 0.2 0.5)))
-(local material_left (make-metal (make-colour 0.8 0.8 0.8) 0.3))
+(local material_left (make-dielectric 1.5))
 (local material_right (make-metal (make-colour 0.8 0.6 0.2) 1))
 
 (world:add (make-sphere (make-point 0 -100.5 -1) 100 material_ground))
