@@ -1,8 +1,50 @@
 * Implementing a ray tracer inside the TIC-80.
 
+Trying to implement a ray tracer on the [[https://tic80.com/][TIC-80]] fantasy computer following [[https://raytracing.github.io/books/RayTracingInOneWeekend.html][Ray
+Tracer in One Weekend]].
+
 ** TODOs
 - [X] a function to reassign the entire palette
 - [X] a function that renders +a frame+ each pixel
 - [X] a function to colour quantise a scanline worth of pixels
   - [X] implement median cut clustering
 - [X] draw a frame of scanlines, each with their own palettes, to screen using ~BDR~
+
+** Samples
+
+
+A basic sphere:
+
+[[./images/it works!.png]]
+
+A sphere with ground and normal vectors:
+
+[[./images/sphere with ground.png]]
+
+Antialiasing:
+
+[[./images/antialiasing.png]]
+
+First diffuse sphere:
+
+[[./images/first diffuse sphere.png]]
+
+Diffuse sphere with shadow acne fix:
+
+[[./images/shadow acne fix.png]]
+
+Lambertian reflexions:
+
+[[./images/lambertian reflexion.png]]
+
+Gamma correction:
+
+[[./images/gamma correction.png]]
+
+Shiny metal spheres:
+
+[[./images/shiny metals.png]]
+
+Fuzzed metals spheres:
+
+[[./images/fuzzed metal.png]]
